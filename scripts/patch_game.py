@@ -1,3 +1,4 @@
+import subprocess
 #!/usr/bin/env python3
 """
 Unity 4 (TOG) - Dynamic Compatibility Patcher

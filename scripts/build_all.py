@@ -223,8 +223,24 @@ def step6_build_and_sign(java_bin, orig_apk, zipalign_bin, apksigner_bin, keysto
                 zinfo.compress_type = zipfile.ZIP_DEFLATED
             z_out.writestr(zinfo, data)
             
+        # Include custom assets from apk_decoded/assets/ (e.g. from features)
+        written_files = set(z_base.namelist())
+        decoded_assets = os.path.join(WORKSPACE_DIR, 'apk_decoded', 'assets')
+        if os.path.exists(decoded_assets):
+            for root, _, files in os.walk(decoded_assets):
+                for f in files:
+                    full_p = os.path.join(root, f)
+                    rel_p = os.path.relpath(full_p, os.path.join(WORKSPACE_DIR, 'apk_decoded')).replace('\\', '/')
+                    if rel_p not in written_files:
+                        with open(full_p, 'rb') as af:
+                            a_data = af.read()
+                        zinfo = zipfile.ZipInfo(rel_p)
+                        zinfo.compress_type = zipfile.ZIP_DEFLATED
+                        z_out.writestr(zinfo, a_data)
+                        written_files.add(rel_p)
+
         for item in z_orig.infolist():
-            if item.filename.startswith('assets/'):
+            if item.filename.startswith('assets/') and item.filename not in written_files:
                 if item.filename == 'assets/bin/Data/Managed/Assembly-CSharp.dll':
                     patched_dll = os.path.join(WORKSPACE_DIR, 'extracted_code', 'managed', 'Assembly-CSharp.dll')
                     if os.path.exists(patched_dll):
@@ -286,6 +302,9 @@ def main():
     parser.add_argument('--target-sdk', type=int, default=22, help="Target SDK version for default/legacy build (default: 22)")
     parser.add_argument('--modern-sdk', type=int, default=28, help="Target SDK version for modern build above 26 (default: 28)")
     parser.add_argument('--export-both', action='store_true', help="Export 2 APKs: default legacy (target SDK 22) and modern (target SDK > 26)")
+    parser.add_argument('--features', type=str, default=None, help="Comma-separated custom features to inject (e.g. settings_page or 1)")
+    parser.add_argument('--no-features', action='store_true', help="Skip custom features integration prompt")
+    parser.add_argument('--non-interactive', action='store_true', help="Disable interactive prompt during build")
     parser.add_argument('--install', type=str, nargs='?', const='127.0.0.1:58526', help="Install directly to ADB device/emulator (default: 127.0.0.1:58526)")
     args = parser.parse_args()
 
@@ -302,6 +321,18 @@ def main():
     if args.decompile:
         step2_decompile(java_bin)
     step3_decode_apk(java_bin, orig_apk)
+
+    # Step 3.5: Modular Custom Feature Selection
+    if not args.no_features:
+        sys.path.insert(0, os.path.dirname(__file__))
+        import feature_manager
+        if args.features:
+            for feat_id in args.features.split(","):
+                for k, feat in feature_manager.REGISTRY.items():
+                    if k == feat_id.strip() or feat["id"] == feat_id.strip():
+                        feature_manager.execute_feature(k, WORKSPACE_DIR)
+        elif not args.non_interactive:
+            feature_manager.interactive_prompt(WORKSPACE_DIR)
     meta = step4_extract_metadata()
 
     import patch_game

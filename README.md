@@ -117,6 +117,9 @@ On Android 10+ (`targetSdkVersion >= 29`) and modern OS builds (Android 14/15/16
 └── scripts/
     ├── extract_metadata.py  # Dynamic extractor for package name, activities, and Smali targets
     ├── build_all.py         # End-to-end automated porting and packaging pipeline (--export-both)
+    ├── feature_manager.py   # Modular feature dispatcher & interactive user selection prompt
+    ├── features/            # Isolated individual feature injection scripts
+    │   └── feature_settings_page.py # Visual settings page injection module
     ├── patch_game.py        # Smali bytecode and AndroidManifest compatibility patcher
     ├── package_and_sign.py  # Standalone 16KB alignment and apksigner utility
     ├── set_target_22.py     # Utility to adjust apktool targetSdkVersion
@@ -174,6 +177,23 @@ python scripts/build_all.py --export-both --decompile
 To specify custom input or output paths:
 ```bash
 python scripts/build_all.py --input path/to/source.apk --output path/to/output.apk
+```
+
+#### Modular Custom Feature Integration
+During the porting steps, the pipeline interactively prompts whether you want to integrate custom extended features. You can also specify features or manage them via standalone CLI:
+```bash
+# Interactively select features during build:
+python scripts/build_all.py --export-both
+
+# Directly inject the extended visual settings page:
+python scripts/build_all.py --export-both --features settings_page
+
+# Skip feature integration prompt for clean original port:
+python scripts/build_all.py --export-both --no-features
+
+# Manage features independently via standalone manager:
+python scripts/feature_manager.py --list
+python scripts/feature_manager.py --apply settings_page
 ```
 
 ### 3. Deploy and Run via ADB
