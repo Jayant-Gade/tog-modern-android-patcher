@@ -150,7 +150,38 @@ if (-not $fixedAlreadyPatched) {
     Write-Host "[+] Patched FixedUpdate() with sensitivity & damping scaling."
 }
 
-# 3. Save modified assembly
+# 3. Patch PlayerGun.EmitProjectile() for live cheat_custom_damage override
+$typeGun = $mainMod.Types | Where-Object { $_.Name -eq 'PlayerGun' }
+if ($null -ne $typeGun) {
+    $mEmit = $typeGun.Methods | Where-Object { $_.Name -eq 'EmitProjectile' }
+    if ($null -ne $mEmit) {
+        $alreadyPatchedGun = $false
+        foreach ($instr in $mEmit.Body.Instructions) {
+            if ($instr.OpCode.Name -eq 'ldstr' -and [string]$instr.Operand -eq 'cheat_custom_damage') {
+                $alreadyPatchedGun = $true
+                break
+            }
+        }
+        if (-not $alreadyPatchedGun) {
+            $ilEmit = $mEmit.Body.GetILProcessor()
+            $fCheatDmg = $typeGun.Fields | Where-Object { $_.Name -eq 'CHEAT_GUN_DAMAGE' }
+            $firstInst = $mEmit.Body.Instructions[0]
+            
+            $i1 = $ilEmit.Create([Mono.Cecil.Cil.OpCodes]::Ldstr, "cheat_custom_damage")
+            $i2 = $ilEmit.Create([Mono.Cecil.Cil.OpCodes]::Ldc_R4, [float]0.0)
+            $i3 = $ilEmit.Create([Mono.Cecil.Cil.OpCodes]::Call, $getFloatRef)
+            $i4 = $ilEmit.Create([Mono.Cecil.Cil.OpCodes]::Stsfld, $fCheatDmg)
+            
+            $ilEmit.InsertBefore($firstInst, $i1)
+            $ilEmit.InsertAfter($i1, $i2)
+            $ilEmit.InsertAfter($i2, $i3)
+            $ilEmit.InsertAfter($i3, $i4)
+            Write-Host "[+] Patched PlayerGun.EmitProjectile() with live cheat_custom_damage override."
+        }
+    }
+}
+
+# 4. Save modified assembly
 $asm.Write($resolvedDll)
 $asm.Dispose()
 $mem.Dispose()

@@ -2,10 +2,10 @@
 """
 feature_manager.py
 ------------------
-Main Custom Feature Selector and Dispatcher (Public Toolchain):
-Manages optional non-default features for the game porting pipeline.
+Main Custom Feature Selector and Dispatcher:
+Manages optional non-default features for the Tons of Guns porting pipeline.
 Allows the user to interactively choose which new features to integrate,
-and triggers each feature's individual module dynamically.
+and triggers each feature's individual module.
 """
 
 import os
@@ -32,11 +32,11 @@ REGISTRY = {
         'status': 'READY',
     },
     '2': {
-        'id': 'cheat_mode',
-        'name': 'Cheat Mode & Star (*) Marker',
-        'description': 'Persistent cheat toggle with permanent save file star indicator',
-        'module': None,
-        'status': 'ROADMAP (Planned)',
+        'id': 'cheat_system',
+        'name': 'Cheat System & Custom Gun Damage',
+        'description': '★ Cheats button, master toggle, Cheater Mark, and custom damage override',
+        'module': 'features.feature_cheat_system',
+        'status': 'READY',
     },
     '3': {
         'id': 'currency_changer',
@@ -140,12 +140,13 @@ def interactive_prompt(workspace_dir):
         keys_to_run = [k.strip() for k in selection.split(',') if k.strip()]
 
     for k in keys_to_run:
+        # Match by key (1, 2) or ID (settings_page)
         matched_key = None
         if k in REGISTRY:
             matched_key = k
         else:
             for rk, rfeat in REGISTRY.items():
-                if rfeat['id'] == k:
+                if rfeat['id'] == k or (rfeat['id'] == 'cheat_system' and k in ['cheat_mode', 'cheats']):
                     matched_key = rk
                     break
 
@@ -159,7 +160,7 @@ def interactive_prompt(workspace_dir):
     return applied
 
 def main():
-    parser = argparse.ArgumentParser(description="Modular Game Feature Manager")
+    parser = argparse.ArgumentParser(description="Tons of Guns Modular Feature Manager")
     parser.add_argument('--list', action='store_true', help="List all available and planned features")
     parser.add_argument('--apply', type=str, help="Comma-separated feature IDs or numbers to apply (e.g. 1 or settings_page)")
     parser.add_argument('--all', action='store_true', help="Apply all ready features")
@@ -180,10 +181,11 @@ def main():
         for item in args.apply.split(','):
             item = item.strip()
             for k, feat in REGISTRY.items():
-                if k == item or feat['id'] == item:
+                if k == item or feat['id'] == item or (feat['id'] == 'cheat_system' and item in ['cheat_mode', 'cheats']):
                     execute_feature(k, WORKSPACE_DIR)
         return
 
+    # Default to interactive prompt
     interactive_prompt(WORKSPACE_DIR)
 
 if __name__ == '__main__':

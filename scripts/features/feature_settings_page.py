@@ -518,6 +518,9 @@ def get_html_content():
 
     function toggleCheatNotice(checked) {
       document.getElementById('cheat-notice').style.display = checked ? 'flex' : 'none';
+      if (window.AndroidBridge && window.AndroidBridge.setCheatMode) {
+        window.AndroidBridge.setCheatMode(checked);
+      }
     }
 
     function closeSettings() {
@@ -530,6 +533,16 @@ def get_html_content():
 
     function initSettings() {
       if (window.AndroidBridge) {
+        if (typeof window.AndroidBridge.getCheatMode === 'function') {
+          try {
+            var c = window.AndroidBridge.getCheatMode();
+            var cheatBox = document.getElementById('cheat-toggle');
+            if (cheatBox) {
+              cheatBox.checked = c;
+              document.getElementById('cheat-notice').style.display = c ? 'flex' : 'none';
+            }
+          } catch(e) {}
+        }
         if (typeof window.AndroidBridge.getGyroSensitivity === 'function') {
           try {
             var s = window.AndroidBridge.getGyroSensitivity();
@@ -738,6 +751,7 @@ def get_js_bridge_smali():
 .super Ljava/lang/Object;
 .source "SettingsActivity.java"
 
+
 # annotations
 .annotation system Ldalvik/annotation/EnclosingClass;
     value = Lcom/glu/tonsguns/SettingsActivity;
@@ -748,21 +762,13 @@ def get_js_bridge_smali():
     name = "JsBridge"
 .end annotation
 
+
 # instance fields
 .field private final activity:Lcom/glu/tonsguns/SettingsActivity;
 
+
 # direct methods
-.method public constructor <init>(Lcom/glu/tonsguns/SettingsActivity;)V
-    .locals 0
-
-    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
-
-    iput-object p1, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
-
-    return-void
-.end method
-
-.method static synthetic access$000(Lcom/glu/tonsguns/SettingsActivity$JsBridge;)Lcom/glu/tonsguns/SettingsActivity;
+.method static bridge synthetic -$$Nest$fgetactivity(Lcom/glu/tonsguns/SettingsActivity$JsBridge;)Lcom/glu/tonsguns/SettingsActivity;
     .locals 0
 
     iget-object p0, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
@@ -770,15 +776,33 @@ def get_js_bridge_smali():
     return-object p0
 .end method
 
+.method public constructor <init>(Lcom/glu/tonsguns/SettingsActivity;)V
+    .locals 0
+
+    .line 64
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    .line 65
+    iput-object p1, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
+
+    .line 66
+    return-void
+.end method
+
+
 # virtual methods
 .method public closeSettings()V
     .locals 2
     .annotation runtime Landroid/webkit/JavascriptInterface;
     .end annotation
 
+    .line 70
     iget-object v0, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
 
     if-eqz v0, :cond_0
+
+    .line 71
+    iget-object v0, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
 
     new-instance v1, Lcom/glu/tonsguns/SettingsActivity$JsBridge$1;
 
@@ -786,37 +810,70 @@ def get_js_bridge_smali():
 
     invoke-virtual {v0, v1}, Lcom/glu/tonsguns/SettingsActivity;->runOnUiThread(Ljava/lang/Runnable;)V
 
+    .line 78
     :cond_0
     return-void
 .end method
 
-.method public log(Ljava/lang/String;)V
-    .locals 1
+.method public getCheatMode()Z
+    .locals 3
     .annotation runtime Landroid/webkit/JavascriptInterface;
     .end annotation
 
-    const-string v0, "TOG_Settings"
-
-    invoke-static {v0, p1}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
-
-    return-void
-.end method
-
-.method public getGyroSensitivity()F
-    .locals 4
-    .annotation runtime Landroid/webkit/JavascriptInterface;
-    .end annotation
-
+    .line 117
     iget-object v0, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
 
-    const v1, 0x3f99999a    # 1.2f
+    const/4 v1, 0x0
 
     if-nez v0, :cond_0
 
     return v1
 
+    .line 118
     :cond_0
-    invoke-virtual {v0}, Lcom/glu/tonsguns/SettingsActivity;->getPackageName()Ljava/lang/String;
+    iget-object v0, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
+
+    iget-object v2, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
+
+    invoke-virtual {v2}, Lcom/glu/tonsguns/SettingsActivity;->getPackageName()Ljava/lang/String;
+
+    move-result-object v2
+
+    invoke-virtual {v0, v2, v1}, Lcom/glu/tonsguns/SettingsActivity;->getSharedPreferences(Ljava/lang/String;I)Landroid/content/SharedPreferences;
+
+    move-result-object v0
+
+    .line 119
+    const-string v2, "cheat_mode_enabled"
+
+    invoke-interface {v0, v2, v1}, Landroid/content/SharedPreferences;->getBoolean(Ljava/lang/String;Z)Z
+
+    move-result v0
+
+    return v0
+.end method
+
+.method public getGyroDamping()F
+    .locals 4
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+
+    .line 94
+    iget-object v0, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
+
+    const/high16 v1, 0x420c0000    # 35.0f
+
+    if-nez v0, :cond_0
+
+    return v1
+
+    .line 95
+    :cond_0
+    iget-object v0, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
+
+    iget-object v2, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
+
+    invoke-virtual {v2}, Lcom/glu/tonsguns/SettingsActivity;->getPackageName()Ljava/lang/String;
 
     move-result-object v2
 
@@ -826,6 +883,47 @@ def get_js_bridge_smali():
 
     move-result-object v0
 
+    .line 96
+    const-string v2, "gyro_damping"
+
+    invoke-interface {v0, v2, v1}, Landroid/content/SharedPreferences;->getFloat(Ljava/lang/String;F)F
+
+    move-result v0
+
+    return v0
+.end method
+
+.method public getGyroSensitivity()F
+    .locals 4
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+
+    .line 87
+    iget-object v0, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
+
+    const v1, 0x3f99999a    # 1.2f
+
+    if-nez v0, :cond_0
+
+    return v1
+
+    .line 88
+    :cond_0
+    iget-object v0, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
+
+    iget-object v2, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
+
+    invoke-virtual {v2}, Lcom/glu/tonsguns/SettingsActivity;->getPackageName()Ljava/lang/String;
+
+    move-result-object v2
+
+    const/4 v3, 0x0
+
+    invoke-virtual {v0, v2, v3}, Lcom/glu/tonsguns/SettingsActivity;->getSharedPreferences(Ljava/lang/String;I)Landroid/content/SharedPreferences;
+
+    move-result-object v0
+
+    .line 89
     const-string v2, "gyro_sensitivity"
 
     invoke-interface {v0, v2, v1}, Landroid/content/SharedPreferences;->getFloat(Ljava/lang/String;F)F
@@ -835,21 +933,80 @@ def get_js_bridge_smali():
     return v0
 .end method
 
-.method public setGyroSensitivity(F)V
+.method public log(Ljava/lang/String;)V
+    .locals 1
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+
+    .line 82
+    const-string v0, "TOG_Settings"
+
+    invoke-static {v0, p1}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+
+    .line 83
+    return-void
+.end method
+
+.method public recalibrateGyro()V
+    .locals 4
+    .annotation runtime Landroid/webkit/JavascriptInterface;
+    .end annotation
+
+    .line 138
+    const-string v0, "TOG_Settings"
+
+    :try_start_0
+    const-string v1, "ApplicationUtilities"
+
+    const-string v2, "ExitGameCallback"
+
+    const-string v3, "-2"
+
+    invoke-static {v1, v2, v3}, Lcom/unity3d/player/UnityPlayer;->UnitySendMessage(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+
+    .line 139
+    const-string v1, "Triggered gyro recalibrate via ExitGameCallback -2"
+
+    invoke-static {v0, v1}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
+    :try_end_0
+    .catchall {:try_start_0 .. :try_end_0} :catchall_0
+
+    .line 142
+    goto :goto_0
+
+    .line 140
+    :catchall_0
+    move-exception v1
+
+    .line 141
+    const-string v2, "Recalibrate error"
+
+    invoke-static {v0, v2, v1}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
+
+    .line 143
+    :goto_0
+    return-void
+.end method
+
+.method public setCheatMode(Z)V
     .locals 3
     .annotation runtime Landroid/webkit/JavascriptInterface;
     .end annotation
 
+    .line 124
     iget-object v0, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
 
     if-nez v0, :cond_0
 
     return-void
 
+    .line 125
     :cond_0
     iget-object v0, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
 
-    invoke-virtual {v0}, Lcom/glu/tonsguns/SettingsActivity;->getPackageName()Ljava/lang/String;
+    iget-object v1, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
+
+    invoke-virtual {v1}, Lcom/glu/tonsguns/SettingsActivity;->getPackageName()Ljava/lang/String;
 
     move-result-object v1
 
@@ -859,29 +1016,31 @@ def get_js_bridge_smali():
 
     move-result-object v0
 
+    .line 126
     invoke-interface {v0}, Landroid/content/SharedPreferences;->edit()Landroid/content/SharedPreferences$Editor;
 
     move-result-object v0
 
-    const-string v1, "gyro_sensitivity"
+    const-string v1, "cheat_mode_enabled"
 
-    invoke-interface {v0, v1, p1}, Landroid/content/SharedPreferences$Editor;->putFloat(Ljava/lang/String;F)Landroid/content/SharedPreferences$Editor;
+    invoke-interface {v0, v1, p1}, Landroid/content/SharedPreferences$Editor;->putBoolean(Ljava/lang/String;Z)Landroid/content/SharedPreferences$Editor;
 
     move-result-object v0
 
     invoke-interface {v0}, Landroid/content/SharedPreferences$Editor;->commit()Z
 
+    .line 127
     new-instance v0, Ljava/lang/StringBuilder;
 
     invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
 
-    const-string v1, "Saved gyro_sensitivity = "
+    const-string v1, "Saved cheat_mode_enabled = "
 
     invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
 
     move-result-object v0
 
-    invoke-virtual {v0, p1}, Ljava/lang/StringBuilder;->append(F)Ljava/lang/StringBuilder;
+    invoke-virtual {v0, p1}, Ljava/lang/StringBuilder;->append(Z)Ljava/lang/StringBuilder;
 
     move-result-object p1
 
@@ -893,40 +1052,27 @@ def get_js_bridge_smali():
 
     invoke-static {v0, p1}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
 
+    .line 129
+    :try_start_0
+    invoke-static {}, Lcom/glu/tonsguns/FloatingCheatsButton;->updateVisibility()V
+    :try_end_0
+    .catchall {:try_start_0 .. :try_end_0} :catchall_0
+
+    .line 132
+    goto :goto_0
+
+    .line 130
+    :catchall_0
+    move-exception p1
+
+    .line 131
+    const-string v1, "Error updating FloatingCheatsButton"
+
+    invoke-static {v0, v1, p1}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
+
+    .line 133
+    :goto_0
     return-void
-.end method
-
-.method public getGyroDamping()F
-    .locals 4
-    .annotation runtime Landroid/webkit/JavascriptInterface;
-    .end annotation
-
-    iget-object v0, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
-
-    const/high16 v1, 0x420c0000    # 35.0f
-
-    if-nez v0, :cond_0
-
-    return v1
-
-    :cond_0
-    invoke-virtual {v0}, Lcom/glu/tonsguns/SettingsActivity;->getPackageName()Ljava/lang/String;
-
-    move-result-object v2
-
-    const/4 v3, 0x0
-
-    invoke-virtual {v0, v2, v3}, Lcom/glu/tonsguns/SettingsActivity;->getSharedPreferences(Ljava/lang/String;I)Landroid/content/SharedPreferences;
-
-    move-result-object v0
-
-    const-string v2, "gyro_damping"
-
-    invoke-interface {v0, v2, v1}, Landroid/content/SharedPreferences;->getFloat(Ljava/lang/String;F)F
-
-    move-result v0
-
-    return v0
 .end method
 
 .method public setGyroDamping(F)V
@@ -934,16 +1080,20 @@ def get_js_bridge_smali():
     .annotation runtime Landroid/webkit/JavascriptInterface;
     .end annotation
 
+    .line 109
     iget-object v0, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
 
     if-nez v0, :cond_0
 
     return-void
 
+    .line 110
     :cond_0
     iget-object v0, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
 
-    invoke-virtual {v0}, Lcom/glu/tonsguns/SettingsActivity;->getPackageName()Ljava/lang/String;
+    iget-object v1, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
+
+    invoke-virtual {v1}, Lcom/glu/tonsguns/SettingsActivity;->getPackageName()Ljava/lang/String;
 
     move-result-object v1
 
@@ -953,6 +1103,7 @@ def get_js_bridge_smali():
 
     move-result-object v0
 
+    .line 111
     invoke-interface {v0}, Landroid/content/SharedPreferences;->edit()Landroid/content/SharedPreferences$Editor;
 
     move-result-object v0
@@ -965,6 +1116,7 @@ def get_js_bridge_smali():
 
     invoke-interface {v0}, Landroid/content/SharedPreferences$Editor;->commit()Z
 
+    .line 112
     new-instance v0, Ljava/lang/StringBuilder;
 
     invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
@@ -987,41 +1139,75 @@ def get_js_bridge_smali():
 
     invoke-static {v0, p1}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
 
+    .line 113
     return-void
 .end method
 
-.method public recalibrateGyro()V
-    .locals 4
+.method public setGyroSensitivity(F)V
+    .locals 3
     .annotation runtime Landroid/webkit/JavascriptInterface;
     .end annotation
 
+    .line 101
+    iget-object v0, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
+
+    if-nez v0, :cond_0
+
+    return-void
+
+    .line 102
+    :cond_0
+    iget-object v0, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
+
+    iget-object v1, p0, Lcom/glu/tonsguns/SettingsActivity$JsBridge;->activity:Lcom/glu/tonsguns/SettingsActivity;
+
+    invoke-virtual {v1}, Lcom/glu/tonsguns/SettingsActivity;->getPackageName()Ljava/lang/String;
+
+    move-result-object v1
+
+    const/4 v2, 0x0
+
+    invoke-virtual {v0, v1, v2}, Lcom/glu/tonsguns/SettingsActivity;->getSharedPreferences(Ljava/lang/String;I)Landroid/content/SharedPreferences;
+
+    move-result-object v0
+
+    .line 103
+    invoke-interface {v0}, Landroid/content/SharedPreferences;->edit()Landroid/content/SharedPreferences$Editor;
+
+    move-result-object v0
+
+    const-string v1, "gyro_sensitivity"
+
+    invoke-interface {v0, v1, p1}, Landroid/content/SharedPreferences$Editor;->putFloat(Ljava/lang/String;F)Landroid/content/SharedPreferences$Editor;
+
+    move-result-object v0
+
+    invoke-interface {v0}, Landroid/content/SharedPreferences$Editor;->commit()Z
+
+    .line 104
+    new-instance v0, Ljava/lang/StringBuilder;
+
+    invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
+
+    const-string v1, "Saved gyro_sensitivity = "
+
+    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+
+    move-result-object v0
+
+    invoke-virtual {v0, p1}, Ljava/lang/StringBuilder;->append(F)Ljava/lang/StringBuilder;
+
+    move-result-object p1
+
+    invoke-virtual {p1}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+
+    move-result-object p1
+
     const-string v0, "TOG_Settings"
 
-    :try_start_0
-    const-string v1, "ApplicationUtilities"
+    invoke-static {v0, p1}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
 
-    const-string v2, "ExitGameCallback"
-
-    const-string v3, "-2"
-
-    invoke-static {v1, v2, v3}, Lcom/unity3d/player/UnityPlayer;->UnitySendMessage(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
-
-    const-string v1, "Triggered gyro recalibrate via ExitGameCallback -2"
-
-    invoke-static {v0, v1}, Landroid/util/Log;->d(Ljava/lang/String;Ljava/lang/String;)I
-    :try_end_0
-    .catchall {:try_start_0 .. :try_end_0} :catchall_0
-
-    goto :goto_0
-
-    :catchall_0
-    move-exception v1
-
-    const-string v2, "Recalibrate error"
-
-    invoke-static {v0, v2, v1}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
-
-    :goto_0
+    .line 105
     return-void
 .end method
 """
@@ -1512,6 +1698,7 @@ def apply_feature(workspace_dir):
 
         activity_tag = '''        <activity android:name="com.glu.tonsguns.SettingsActivity"
                   android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen"
+                  android:screenOrientation="portrait"
                   android:configChanges="keyboard|keyboardHidden|orientation|screenSize"
                   android:hardwareAccelerated="true"
                   android:exported="true">

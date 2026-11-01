@@ -480,6 +480,20 @@ def patch_manifest(target_sdk=22, meta=None):
 
     m = re.sub(r'<(?:activity|service|receiver)[^>]*>', add_exported, m)
 
+    # Force android:screenOrientation="portrait" across all activities
+    def enforce_portrait(match):
+        tag = match.group(0)
+        if 'android:screenOrientation=' in tag:
+            return re.sub(r'android:screenOrientation="[^"]*"', 'android:screenOrientation="portrait"', tag)
+        else:
+            if tag.endswith('/>'):
+                return tag[:-2].rstrip() + ' android:screenOrientation="portrait"/>'
+            elif tag.endswith('>'):
+                return tag[:-1].rstrip() + ' android:screenOrientation="portrait">'
+        return tag
+
+    m = re.sub(r'<activity\b[^>]*>', enforce_portrait, m)
+
     # 3. Dynamic Launcher resolution from extracted metadata
     unity_launcher = meta.get('unity_launcher_activity')
     downloader = meta.get('downloader_activity')
@@ -491,9 +505,9 @@ def patch_manifest(target_sdk=22, meta=None):
         # Reroute launcher intent from downloader to unity_launcher
         old_launcher_pattern = r'<activity\s+[^>]*?DownloaderActivity[^>]*?>\s*<intent-filter>\s*<action\s+android:name="android\.intent\.action\.MAIN"\s*/>\s*<category\s+android:name="android\.intent\.category\.LAUNCHER"\s*/>\s*</intent-filter>\s*</activity>'
 
-        downloader_tag = f'<activity android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:label="@string/app_name" android:name="{downloader}" android:screenOrientation="sensorLandscape" android:exported="true"/>' if downloader else ''
+        downloader_tag = f'<activity android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:label="@string/app_name" android:name="{downloader}" android:screenOrientation="portrait" android:exported="true"/>' if downloader else ''
         new_launcher = f'''{downloader_tag}
-        <activity android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:label="@string/app_name" android:launchMode="singleTask" android:name="{unity_launcher}" android:screenOrientation="sensorLandscape" android:exported="true">
+        <activity android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize" android:label="@string/app_name" android:launchMode="singleTask" android:name="{unity_launcher}" android:screenOrientation="portrait" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

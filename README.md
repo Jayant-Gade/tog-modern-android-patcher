@@ -249,7 +249,7 @@ The unified checklist below details all game, platform, and engine features—in
 > The features listed below represent **custom additions, quality-of-life modifications, and offline preservation systems** that were not present in the default 2013 game. They are tracked as an active development roadmap. **Currently, none of these custom features are implemented (`[ ]`)**.
 
 ### 1. Cheat System & Save Integrity
-- [ ] **Cheat Mode Master Unlock (Settings Menu)**:
+- [x] **Cheat Mode Master Unlock (Settings Menu)**:
   - Accessible via a dedicated toggle in the in-game Settings menu.
   - Required to be toggled ON to unlock and access any value modifying features.
 - [ ] **Cheat Star (`★`) Indicator**:
@@ -257,6 +257,8 @@ The unified checklist below details all game, platform, and engine features—in
   - Automatically marked once cheats are enabled on that save file to ensure transparency and preserve legitimate save file integrity.
 
 ### 2. Value Changer & Custom Attributes (Requires Cheat Mode)
+- [x] **Custom Bullet Damage (Weapon Damage Modifier)**:
+  - Dynamically overrides damage during projectile emission via `PlayerGun.CHEAT_GUN_DAMAGE` with presets (Default, 250, 500, 1k, 5k, 99k) and custom inputs from the `★ CHEATS` menu.
 - [ ] **Currency Count Changer**:
   - In-game interface to modify Cash, Gold, and Glu Credits without microtransactions or dead payment gateways.
 - [ ] **Custom Attribute Items (Weapons)**:
