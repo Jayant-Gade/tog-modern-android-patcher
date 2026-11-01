@@ -41,10 +41,9 @@ def resolve_input_apk(user_specified=None):
         return default_path
 
     # Fallback auto-detection for any user-supplied APK in workspace
-    excluded = ('_ported.apk', '_aligned.apk', '_unaligned.apk', 'base_rebuilt.apk', 'temp_aligned.apk', 'temp_unaligned.apk')
     candidates = [
         f for f in os.listdir(WORKSPACE_DIR)
-        if f.lower().endswith('.apk') and not any(f.lower().endswith(ex) for ex in excluded)
+        if f.lower().endswith('.apk') and not any(k in f.lower() for k in ('ported', 'aligned', 'rebuilt', 'temp_'))
     ]
     if candidates:
         selected = os.path.join(WORKSPACE_DIR, candidates[0])
@@ -210,7 +209,10 @@ def step6_build_and_sign(java_bin, orig_apk, zipalign_bin, apksigner_bin, keysto
             if item.filename.endswith('.so'):
                 b = bytearray(data)
                 import patch_game
-                if patch_game.patch_elf_textrel_bytes(b):
+                c_cp15 = patch_game.patch_arm_cp15_barriers_bytes(b)
+                c_textrel = patch_game.patch_elf_textrel_bytes(b)
+                c_tele = patch_game.patch_native_device_id_bytes(b)
+                if c_cp15 > 0 or c_textrel or c_tele > 0:
                     data = bytes(b)
             zinfo = zipfile.ZipInfo(item.filename)
             zinfo.date_time = item.date_time
@@ -223,11 +225,22 @@ def step6_build_and_sign(java_bin, orig_apk, zipalign_bin, apksigner_bin, keysto
             
         for item in z_orig.infolist():
             if item.filename.startswith('assets/'):
-                data = z_orig.read(item.filename)
+                if item.filename == 'assets/bin/Data/Managed/Assembly-CSharp.dll':
+                    patched_dll = os.path.join(WORKSPACE_DIR, 'extracted_code', 'managed', 'Assembly-CSharp.dll')
+                    if os.path.exists(patched_dll):
+                        with open(patched_dll, 'rb') as f:
+                            data = f.read()
+                    else:
+                        data = z_orig.read(item.filename)
+                else:
+                    data = z_orig.read(item.filename)
                 if item.filename.endswith('.so'):
                     b = bytearray(data)
                     import patch_game
-                    if patch_game.patch_elf_textrel_bytes(b):
+                    c_cp15 = patch_game.patch_arm_cp15_barriers_bytes(b)
+                    c_textrel = patch_game.patch_elf_textrel_bytes(b)
+                    c_tele = patch_game.patch_native_device_id_bytes(b)
+                    if c_cp15 > 0 or c_textrel or c_tele > 0:
                         data = bytes(b)
                 zinfo = zipfile.ZipInfo(item.filename)
                 zinfo.date_time = item.date_time
@@ -270,23 +283,18 @@ def main():
     parser.add_argument('--input', '-i', type=str, default=None, help=f"Path to input APK (default: auto-detect or {DEFAULT_INPUT_APK})")
     parser.add_argument('--output', '-o', type=str, default=None, help=f"Path to output APK (default: {DEFAULT_OUTPUT_APK})")
     parser.add_argument('--decompile', action='store_true', help="Also decompile C# and Java source trees")
-    parser.add_argument('--target-sdk', type=int, default=22, help="Target SDK version (default: 22 for legacy ARM/Bionic engine compatibility; 22-37 supported)")
+    parser.add_argument('--target-sdk', type=int, default=22, help="Target SDK version for default/legacy build (default: 22)")
+    parser.add_argument('--modern-sdk', type=int, default=28, help="Target SDK version for modern build above 26 (default: 28)")
+    parser.add_argument('--export-both', action='store_true', help="Export 2 APKs: default legacy (target SDK 22) and modern (target SDK > 26)")
     parser.add_argument('--install', type=str, nargs='?', const='127.0.0.1:58526', help="Install directly to ADB device/emulator (default: 127.0.0.1:58526)")
     args = parser.parse_args()
 
     orig_apk = resolve_input_apk(args.input)
-    if args.output:
-        final_apk = os.path.abspath(args.output) if os.path.isabs(args.output) else os.path.join(WORKSPACE_DIR, args.output)
-    else:
-        final_apk = os.path.join(WORKSPACE_DIR, DEFAULT_OUTPUT_APK)
-
     sdk_dir, bt_dir, zipalign_bin, apksigner_bin = find_android_sdk()
     java_bin = find_java()
     keystore = ensure_keystore()
 
     log(f"Input APK: {orig_apk}")
-    log(f"Output APK: {final_apk}")
-    log(f"Target SDK: {args.target_sdk} (Android 17 / Modern Android)")
     log(f"Android SDK: {sdk_dir} (build-tools {os.path.basename(bt_dir)})")
     log(f"Java Binary: {java_bin}")
 
@@ -295,8 +303,45 @@ def main():
         step2_decompile(java_bin)
     step3_decode_apk(java_bin, orig_apk)
     meta = step4_extract_metadata()
-    step5_apply_patches(meta=meta, target_sdk=args.target_sdk)
-    step6_build_and_sign(java_bin, orig_apk, zipalign_bin, apksigner_bin, keystore, final_apk)
+
+    import patch_game
+
+    if args.export_both:
+        legacy_apk = os.path.join(WORKSPACE_DIR, 'tog_ported_legacy.apk')
+        modern_apk = os.path.join(WORKSPACE_DIR, 'tog_ported_modern.apk')
+        default_apk = os.path.join(WORKSPACE_DIR, DEFAULT_OUTPUT_APK)
+
+        log("=" * 60)
+        log("EXPORTING 2 APKS:")
+        log(f"  1. Default/Legacy APK (targetSdkVersion={args.target_sdk}): {legacy_apk}")
+        log(f"  2. Modern APK (targetSdkVersion={args.modern_sdk} > 26): {modern_apk}")
+        log("=" * 60)
+
+        # Build 1: Default / Legacy
+        log(f"Building APK 1: Default/Legacy (targetSdkVersion={args.target_sdk})...")
+        step5_apply_patches(meta=meta, target_sdk=args.target_sdk)
+        step6_build_and_sign(java_bin, orig_apk, zipalign_bin, apksigner_bin, keystore, legacy_apk)
+
+        # Build 2: Modern (SDK > 26)
+        log(f"Building APK 2: Modern (targetSdkVersion={args.modern_sdk})...")
+        patch_game.set_target_sdk(args.modern_sdk)
+        step6_build_and_sign(java_bin, orig_apk, zipalign_bin, apksigner_bin, keystore, modern_apk)
+
+        # Copy modern build to default output for convenience
+        shutil.copy2(modern_apk, default_apk)
+        log(f"Copied modern APK to {default_apk}")
+        install_target_apk = modern_apk
+    else:
+        if args.output:
+            final_apk = os.path.abspath(args.output) if os.path.isabs(args.output) else os.path.join(WORKSPACE_DIR, args.output)
+        else:
+            final_apk = os.path.join(WORKSPACE_DIR, DEFAULT_OUTPUT_APK)
+
+        log(f"Output APK: {final_apk}")
+        log(f"Target SDK: {args.target_sdk}")
+        step5_apply_patches(meta=meta, target_sdk=args.target_sdk)
+        step6_build_and_sign(java_bin, orig_apk, zipalign_bin, apksigner_bin, keystore, final_apk)
+        install_target_apk = final_apk
 
     log(f"To launch game on connected device:")
     log(f"  adb shell am start -n {meta['adb_launch_component']}")
@@ -305,7 +350,7 @@ def main():
         adb_bin = os.path.join(sdk_dir, 'platform-tools', 'adb.exe' if os.name == 'nt' else 'adb')
         log(f"Installing onto {args.install}...")
         subprocess.run([adb_bin, 'connect', args.install])
-        subprocess.run([adb_bin, '-s', args.install, 'install', '--bypass-low-target-sdk-block', '--no-incremental', '-r', final_apk])
+        subprocess.run([adb_bin, '-s', args.install, 'install', '--bypass-low-target-sdk-block', '--no-incremental', '-r', install_target_apk])
 
 if __name__ == '__main__':
     main()

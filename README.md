@@ -163,13 +163,13 @@ The unified checklist below details all game, platform, and engine features—in
 - [x] **Modern Android OS Installation**: Installs cleanly on Android 11 through Android 16 Preview without package manager conflicts
 - [x] **16KB Page Alignment**: ELF shared libraries aligned to 16KB boundaries (`zipalign -P 16 4`) for modern Linux kernels
 - [x] **Scoped Storage Pre-initialization**: Pre-creates application files directory via `getExternalFilesDir(null)` to eliminate `UnauthorizedAccessException`
-- [ ] **Direct Launcher Bypass**: Routes launch intent directly to the game activity, bypassing defunct expansion download screens
-- [ ] **Legacy Dynamic Linker Relocations**: Target SDK configured to retain runtime support for legacy 32-bit text relocations
-- [ ] **3D Engine & Graphics Rendering**: Full OpenGL ES 2.0 rendering (weapons, crosshair, enemies, and environments)
-- [ ] **Touch & Motion Controls**: Touch-based firing/reloading, weapon switching, and accelerometer/gyroscope tilt aiming
-- [ ] **Local Audio Playback**: FMOD sound engine playing background music tracks and weapon sound effects
-- [ ] **Single-Player Gameplay Loop**: Level 1 mission loading, combat logic, and shootout progression
-- [ ] **Weapon Systems**: Local weapon inventory, firing animations, hit detection, and ammo counts
+- [x] **Direct Launcher Bypass**: Routes launch intent directly to the game activity, bypassing defunct expansion download screens
+- [x] **Legacy Dynamic Linker Relocations**: Target SDK configured to retain runtime support for legacy 32-bit text relocations
+- [x] **3D Engine & Graphics Rendering**: Full OpenGL ES 2.0 rendering (weapons, crosshair, enemies, and environments)
+- [x] **Touch & Motion Controls**: Touch-based firing/reloading, weapon switching, and accelerometer/gyroscope tilt aiming
+- [x] **Local Audio Playback**: FMOD sound engine playing background music tracks and weapon sound effects
+- [x] **Single-Player Gameplay Loop**: Level 1 mission loading, combat logic, and shootout progression
+- [x] **Weapon Systems**: Local weapon inventory, firing animations, hit detection, and ammo counts
 - [x] **32-bit ARM (ARMv7-A) Execution**: Runs on devices with 32-bit silicon support or hybrid 32/64-bit Android OS builds
 - [ ] **Native 64-bit-Only Architecture Support**:
   > **What is Native 64-bit Only?**  

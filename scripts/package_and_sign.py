@@ -61,6 +61,14 @@ with zipfile.ZipFile(base_rebuilt_path, 'r') as z_base, \
     # Write entries from base_rebuilt
     for item in z_base.infolist():
         data = z_base.read(item.filename)
+        if item.filename.endswith('.so'):
+            b = bytearray(data)
+            import patch_game
+            c_cp15 = patch_game.patch_arm_cp15_barriers_bytes(b)
+            c_textrel = patch_game.patch_elf_textrel_bytes(b)
+            c_tele = patch_game.patch_native_device_id_bytes(b)
+            if c_cp15 > 0 or c_textrel or c_tele > 0:
+                data = bytes(b)
         zinfo = zipfile.ZipInfo(item.filename)
         zinfo.date_time = item.date_time
         # Store .so and resources.arsc uncompressed for page-alignment and Android 11+
@@ -76,11 +84,22 @@ with zipfile.ZipFile(base_rebuilt_path, 'r') as z_base, \
     asset_count = 0
     for item in z_orig.infolist():
         if item.filename.startswith('assets/'):
-            data = z_orig.read(item.filename)
+            if item.filename == 'assets/bin/Data/Managed/Assembly-CSharp.dll':
+                patched_dll = os.path.join(WORKSPACE_DIR, 'extracted_code', 'managed', 'Assembly-CSharp.dll')
+                if os.path.exists(patched_dll):
+                    with open(patched_dll, 'rb') as f_dll:
+                        data = f_dll.read()
+                else:
+                    data = z_orig.read(item.filename)
+            else:
+                data = z_orig.read(item.filename)
             if item.filename.endswith('.so'):
                 b = bytearray(data)
                 import patch_game
-                if patch_game.patch_elf_textrel_bytes(b):
+                c_cp15 = patch_game.patch_arm_cp15_barriers_bytes(b)
+                c_textrel = patch_game.patch_elf_textrel_bytes(b)
+                c_tele = patch_game.patch_native_device_id_bytes(b)
+                if c_cp15 > 0 or c_textrel or c_tele > 0:
                     data = bytes(b)
             zinfo = zipfile.ZipInfo(item.filename)
             zinfo.date_time = item.date_time
