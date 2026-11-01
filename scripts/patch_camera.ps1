@@ -155,4 +155,3 @@ $asm.Write($resolvedDll)
 $asm.Dispose()
 $mem.Dispose()
 Write-Host "[+] Successfully saved modified Assembly-CSharp.dll to $resolvedDll"
-

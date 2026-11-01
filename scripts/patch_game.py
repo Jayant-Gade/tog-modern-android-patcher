@@ -563,6 +563,22 @@ def patch_assembly_csharp_accelerometer_aim(meta=None):
             f.write(dll)
         log("Patched Assembly-CSharp.dll (Activated Accelerometer Tilt Aiming Mode for tablet/gyro fallback).")
 
+
+def patch_assembly_csharp_gyro_camera(meta=None):
+    dll_path = os.path.join(WORKSPACE_DIR, 'extracted_code', 'managed', 'Assembly-CSharp.dll')
+    if not os.path.exists(dll_path):
+        return
+    ps_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'patch_camera.ps1')
+    if not os.path.exists(ps_script):
+        ps_script = os.path.join(WORKSPACE_DIR, 'scripts', 'patch_camera.ps1')
+    if os.path.exists(ps_script):
+        cmd = ['powershell', '-ExecutionPolicy', 'Bypass', '-File', ps_script, '-DllPath', dll_path]
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if res.returncode == 0:
+            log("Patched Assembly-CSharp.dll (Live Gyroscope sensitivity and jitter damping controls).")
+        else:
+            log(f"Warning: patch_camera.ps1 returned code {res.returncode}: {res.stderr or res.stdout}")
+
 def apply_all_patches(target_sdk=22, meta=None):
     log(f"Applying all compatibility patches with dynamic metadata (targetSdkVersion={target_sdk})...")
     if meta is None:
@@ -577,6 +593,7 @@ def apply_all_patches(target_sdk=22, meta=None):
     patch_license_checker(meta)
     patch_telephony_device_id(meta)
     patch_assembly_csharp_accelerometer_aim(meta)
+    patch_assembly_csharp_gyro_camera(meta)
     patch_arm_cp15_barriers(meta)
     patch_native_telephony_calls(meta)
     patch_manifest(target_sdk=target_sdk, meta=meta)

@@ -11,6 +11,13 @@ and triggers each feature's individual module dynamically.
 import os
 import sys
 import argparse
+
+if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 import importlib
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -26,7 +33,7 @@ REGISTRY = {
     },
     '2': {
         'id': 'cheat_mode',
-        'name': 'Cheat Mode & Star (★) Marker',
+        'name': 'Cheat Mode & Star (*) Marker',
         'description': 'Persistent cheat toggle with permanent save file star indicator',
         'module': None,
         'status': 'ROADMAP (Planned)',
