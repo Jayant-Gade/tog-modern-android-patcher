@@ -185,7 +185,7 @@ def step4_extract_metadata():
     log(f"Extracted Unity Launcher: {meta['unity_launcher_activity']}")
     return meta
 
-def step5_apply_patches(meta, target_sdk=37):
+def step5_apply_patches(meta, target_sdk=22):
     log(f"Step 5: Applying dynamic compatibility patches (targetSdkVersion={target_sdk})...")
     sys.path.insert(0, os.path.dirname(__file__))
     import patch_game
@@ -207,6 +207,11 @@ def step6_build_and_sign(java_bin, orig_apk, zipalign_bin, apksigner_bin, keysto
         
         for item in z_base.infolist():
             data = z_base.read(item.filename)
+            if item.filename.endswith('.so'):
+                b = bytearray(data)
+                import patch_game
+                if patch_game.patch_elf_textrel_bytes(b):
+                    data = bytes(b)
             zinfo = zipfile.ZipInfo(item.filename)
             zinfo.date_time = item.date_time
             # Store .so and resources.arsc uncompressed for Android 11+ (API 30+) requirements
@@ -265,7 +270,7 @@ def main():
     parser.add_argument('--input', '-i', type=str, default=None, help=f"Path to input APK (default: auto-detect or {DEFAULT_INPUT_APK})")
     parser.add_argument('--output', '-o', type=str, default=None, help=f"Path to output APK (default: {DEFAULT_OUTPUT_APK})")
     parser.add_argument('--decompile', action='store_true', help="Also decompile C# and Java source trees")
-    parser.add_argument('--target-sdk', type=int, default=37, help="Target SDK version (default: 37 for Android 17 / HyperOS 3; 22-37 supported)")
+    parser.add_argument('--target-sdk', type=int, default=22, help="Target SDK version (default: 22 for legacy ARM/Bionic engine compatibility; 22-37 supported)")
     parser.add_argument('--install', type=str, nargs='?', const='127.0.0.1:58526', help="Install directly to ADB device/emulator (default: 127.0.0.1:58526)")
     args = parser.parse_args()
 

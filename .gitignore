@@ -19,6 +19,9 @@
 myagents.md
 /myagents.md
 apk_metadata.json
+/scripts_working/
+/script_working/
+/script_old/
 
 # Ensure python bytecode and caches are excluded
 **/__pycache__/

@@ -97,7 +97,8 @@ def replace_stubs(meta=None):
     if meta is None:
         meta = get_or_extract_metadata()
 
-    native_dir = os.path.join(WORKSPACE_DIR, 'apk_decoded', 'lib', 'armeabi-v7a')
+    lib_base = os.path.join(WORKSPACE_DIR, 'apk_decoded', 'lib')
+    native_dir = os.path.join(lib_base, 'armeabi-v7a')
     os.makedirs(native_dir, exist_ok=True)
     
     unity_src = meta.get('native_binaries', {}).get('unity_source_path')
@@ -108,12 +109,17 @@ def replace_stubs(meta=None):
 
     if unity_src and os.path.exists(unity_src):
         shutil.copy(unity_src, target_unity)
-        patch_unity_textrel(target_unity)
     if mono_src and os.path.exists(mono_src):
         shutil.copy(mono_src, target_mono)
-        patch_unity_textrel(target_mono)
 
-    log("Replaced stub loaders with full engine binaries (libunity.so, libmono.so).")
+    # Patch ALL .so files across all ABIs in apk_decoded/lib to eliminate DT_TEXTREL
+    if os.path.exists(lib_base):
+        for root, _, files in os.walk(lib_base):
+            for f in files:
+                if f.lower().endswith('.so'):
+                    patch_unity_textrel(os.path.join(root, f))
+
+    log("Replaced stub loaders and eliminated DT_TEXTREL across all native libraries in apk_decoded/lib.")
 
 def patch_unity_unpacker(meta=None):
     if meta is None:
@@ -198,58 +204,19 @@ def patch_gms_internal_q(meta=None):
     with open(smali_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    old_target = '''    new-instance v3, Landroid/content/Intent;
+    pattern = r'(invoke-direct \{(v\d+), p1\}, Landroid/content/Intent;-><init>\(Ljava/lang/String;\)V)'
+    def repl(m):
+        full = m.group(1)
+        reg = m.group(2)
+        temp_reg = 'v4' if reg == 'v3' else 'v3'
+        return f'{full}\n\n    const-string {temp_reg}, "com.google.android.gms"\n\n    invoke-virtual {{{reg}, {temp_reg}}}, Landroid/content/Intent;->setPackage(Ljava/lang/String;)Landroid/content/Intent;'
 
-    const-string v4, "com.google.android.gms.games.service.START"
-
-    invoke-direct {v3, v4}, Landroid/content/Intent;-><init>(Ljava/lang/String;)V
-
-    iget-object v4, p0, Lcom/google/android/gms/internal/q;->b:Landroid/content/Context;'''
-
-    new_target = '''    new-instance v3, Landroid/content/Intent;
-
-    const-string v4, "com.google.android.gms.games.service.START"
-
-    invoke-direct {v3, v4}, Landroid/content/Intent;-><init>(Ljava/lang/String;)V
-
-    const-string v4, "com.google.android.gms"
-
-    invoke-virtual {v3, v4}, Landroid/content/Intent;->setPackage(Ljava/lang/String;)Landroid/content/Intent;
-
-    iget-object v4, p0, Lcom/google/android/gms/internal/q;->b:Landroid/content/Context;'''
-
-    old_target_2 = '''    new-instance v4, Landroid/content/Intent;
-
-    const-string v5, "com.google.android.gms.games.service.START"
-
-    invoke-direct {v4, v5}, Landroid/content/Intent;-><init>(Ljava/lang/String;)V
-
-    iget-object v5, p0, Lcom/google/android/gms/internal/q;->b:Landroid/content/Context;'''
-
-    new_target_2 = '''    new-instance v4, Landroid/content/Intent;
-
-    const-string v5, "com.google.android.gms.games.service.START"
-
-    invoke-direct {v4, v5}, Landroid/content/Intent;-><init>(Ljava/lang/String;)V
-
-    const-string v5, "com.google.android.gms"
-
-    invoke-virtual {v4, v5}, Landroid/content/Intent;->setPackage(Ljava/lang/String;)Landroid/content/Intent;
-
-    iget-object v5, p0, Lcom/google/android/gms/internal/q;->b:Landroid/content/Context;'''
-
-    patched = False
-    if old_target in content:
-        content = content.replace(old_target, new_target, 1)
-        patched = True
-    if old_target_2 in content:
-        content = content.replace(old_target_2, new_target_2, 1)
-        patched = True
-
-    if patched:
-        with open(smali_path, 'w', encoding='utf-8', newline='\r\n') as f:
-            f.write(content)
-        log("Patched GMS internal q.smali (Explicit Play Games Service Intent).")
+    if 'com.google.android.gms' not in content:
+        content, count = re.subn(pattern, repl, content)
+        if count > 0:
+            with open(smali_path, 'w', encoding='utf-8', newline='\r\n') as f:
+                f.write(content)
+            log(f"Patched {os.path.basename(smali_path)} ({count} Explicit GMS Service Intents).")
 
 def patch_google_iap(meta=None):
     if meta is None:
@@ -309,27 +276,19 @@ def patch_analytics(meta=None):
     with open(smali_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    old_target = '''    new-instance v0, Landroid/content/Intent;
+    pattern = r'(invoke-direct \{(v\d+), [^}]+?\}, Landroid/content/Intent;-><init>\(Ljava/lang/String;\)V\s+)(const-string)'
+    def repl(m):
+        full_intent = m.group(1)
+        reg = m.group(2)
+        rest = m.group(3)
+        return f'{full_intent}const-string v1, "com.google.android.gms"\n\n    invoke-virtual {{{reg}, v1}}, Landroid/content/Intent;->setPackage(Ljava/lang/String;)Landroid/content/Intent;\n\n    {rest}'
 
-    const-string v1, "com.google.android.gms.analytics.service.START"
-
-    invoke-direct {v0, v1}, Landroid/content/Intent;-><init>(Ljava/lang/String;)V'''
-
-    new_target = '''    new-instance v0, Landroid/content/Intent;
-
-    const-string v1, "com.google.android.gms.analytics.service.START"
-
-    invoke-direct {v0, v1}, Landroid/content/Intent;-><init>(Ljava/lang/String;)V
-
-    const-string v1, "com.google.android.gms"
-
-    invoke-virtual {v0, v1}, Landroid/content/Intent;->setPackage(Ljava/lang/String;)Landroid/content/Intent;'''
-
-    if old_target in content:
-        content = content.replace(old_target, new_target, 1)
-        with open(smali_path, 'w', encoding='utf-8', newline='\r\n') as f:
-            f.write(content)
-        log("Patched AnalyticsGmsCoreClient.smali (Explicit Analytics Service Intent).")
+    if 'setPackage' not in content and 'com.google.android.gms.analytics.service.START' in content:
+        content, count = re.subn(pattern, repl, content, count=1)
+        if count > 0:
+            with open(smali_path, 'w', encoding='utf-8', newline='\r\n') as f:
+                f.write(content)
+            log("Patched AnalyticsGmsCoreClient.smali (Explicit Analytics Service Intent).")
 
 def patch_license_checker(meta=None):
     if meta is None:
@@ -342,45 +301,56 @@ def patch_license_checker(meta=None):
     with open(smali_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    old_target = '''    new-instance v2, Landroid/content/Intent;
+    pattern = r'(invoke-direct \{(v\d+), (v\d+)\}, Landroid/content/Intent;-><init>\(Ljava/lang/String;\)V)(\s+const/4 \w+, 0x1\s+invoke-virtual \{[^}]+?\}, Landroid/content/Context;->bindService)'
+    def repl(m):
+        full_init = m.group(1)
+        intent_reg = m.group(2)
+        bind_part = m.group(4)
+        return f'{full_init}\n\n    const-string v4, "com.android.vending"\n\n    invoke-virtual {{{intent_reg}, v4}}, Landroid/content/Intent;->setPackage(Ljava/lang/String;)Landroid/content/Intent;{bind_part}'
 
-    new-instance v3, Ljava/lang/String;
+    if 'com.android.vending' not in content and 'bindService' in content:
+        content, count = re.subn(pattern, repl, content, count=1)
+        if count > 0:
+            with open(smali_path, 'w', encoding='utf-8', newline='\r\n') as f:
+                f.write(content)
+            log("Patched LicenseChecker.smali (Explicit Licensing Service Intent).")
 
-    sget-object v4, Lcom/android/vending/licensing/LicenseChecker;->a:[B
+def patch_telephony_device_id(meta=None):
+    """
+    On Android 10+ (API >= 29), TelephonyManager.getDeviceId() throws SecurityException
+    for non-privileged apps targeting API >= 29.
+    Neutralizes all getDeviceId() invocations across smali to return an empty string.
+    """
+    smali_dir = os.path.join(WORKSPACE_DIR, 'apk_decoded', 'smali')
+    if not os.path.exists(smali_dir):
+        return
 
-    invoke-static {v4}, Lcom/android/vending/licensing/a/a;->a([B)[B
+    pattern = re.compile(
+        r'invoke-virtual(?:/range)?\s*\{[^}]*\}, Landroid/telephony/TelephonyManager;->getDeviceId\(\)Ljava/lang/String;(?:\s*move-result-object\s+(\S+))?'
+    )
 
-    move-result-object v4
+    def repl(m):
+        reg = m.group(1)
+        if reg:
+            return f'const-string {reg}, ""'
+        return '# bypassed getDeviceId'
 
-    invoke-direct {v3, v4}, Ljava/lang/String;-><init>([B)V
+    count = 0
+    for root, _, files in os.walk(smali_dir):
+        for f in files:
+            if f.endswith('.smali'):
+                path = os.path.join(root, f)
+                with open(path, 'r', encoding='utf-8', errors='ignore') as fp:
+                    content = fp.read()
+                new_content, n = pattern.subn(repl, content)
+                if n > 0:
+                    count += n
+                    with open(path, 'w', encoding='utf-8', newline='\r\n') as fp:
+                        fp.write(new_content)
+    if count > 0:
+        log(f"Patched {count} getDeviceId() calls to return empty strings (neutralized SecurityException for targetSdk >= 29).")
 
-    invoke-direct {v2, v3}, Landroid/content/Intent;-><init>(Ljava/lang/String;)V'''
-
-    new_target = '''    new-instance v2, Landroid/content/Intent;
-
-    new-instance v3, Ljava/lang/String;
-
-    sget-object v4, Lcom/android/vending/licensing/LicenseChecker;->a:[B
-
-    invoke-static {v4}, Lcom/android/vending/licensing/a/a;->a([B)[B
-
-    move-result-object v4
-
-    invoke-direct {v3, v4}, Ljava/lang/String;-><init>([B)V
-
-    invoke-direct {v2, v3}, Landroid/content/Intent;-><init>(Ljava/lang/String;)V
-
-    const-string v3, "com.android.vending"
-
-    invoke-virtual {v2, v3}, Landroid/content/Intent;->setPackage(Ljava/lang/String;)Landroid/content/Intent;'''
-
-    if old_target in content:
-        content = content.replace(old_target, new_target, 1)
-        with open(smali_path, 'w', encoding='utf-8', newline='\r\n') as f:
-            f.write(content)
-        log("Patched LicenseChecker.smali (Explicit Licensing Service Intent).")
-
-def patch_manifest(target_sdk=37, meta=None):
+def patch_manifest(target_sdk=22, meta=None):
     if meta is None:
         meta = get_or_extract_metadata()
 
@@ -394,6 +364,10 @@ def patch_manifest(target_sdk=37, meta=None):
     # 1. Application tags
     if 'android:extractNativeLibs="true"' not in m:
         m = re.sub(r'<application\b', '<application android:extractNativeLibs="true" android:usesCleartextTraffic="true" android:requestLegacyExternalStorage="true" android:hardwareAccelerated="true"', m, count=1)
+
+    # Legacy Apache HTTP library (required on targetSdk >= 28)
+    if 'org.apache.http.legacy' not in m:
+        m = re.sub(r'(<application\b[^>]*>)', r'\1\n        <uses-library android:name="org.apache.http.legacy" android:required="false"/>', m, count=1)
 
     # 2. Add exported="true" to components
     def add_exported(match):
@@ -452,7 +426,7 @@ def patch_manifest(target_sdk=37, meta=None):
             f.write(yml)
         log(f"Patched apktool.yml (targetSdkVersion={target_sdk}).")
 
-def apply_all_patches(target_sdk=37, meta=None):
+def apply_all_patches(target_sdk=22, meta=None):
     log(f"Applying all compatibility patches with dynamic metadata (targetSdkVersion={target_sdk})...")
     if meta is None:
         meta = get_or_extract_metadata()
@@ -464,8 +438,9 @@ def apply_all_patches(target_sdk=37, meta=None):
     patch_google_iap(meta)
     patch_analytics(meta)
     patch_license_checker(meta)
+    patch_telephony_device_id(meta)
     patch_manifest(target_sdk=target_sdk, meta=meta)
     log(f"All patches successfully applied for package '{meta['package_name']}'.")
 
 if __name__ == '__main__':
-    apply_all_patches(target_sdk=37)
+    apply_all_patches(target_sdk=22)
