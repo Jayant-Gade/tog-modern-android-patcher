@@ -1,0 +1,52 @@
+# ==============================================================================
+# Git Ignore Configuration
+# ==============================================================================
+# Preservation Repository Policy:
+# Only pipeline scripts, technical documentation, and repository configuration are tracked.
+# No proprietary game binaries, decompiled assets, textures, audio, or tools are stored.
+
+# Ignore all root-level items by default
+/*
+
+# Explicitly whitelist allowed documentation, configuration, and scripts
+!/scripts/
+!/scripts/**
+!/README.md
+!/.gitignore
+!/LICENSE
+
+# Exclude local tracking and metadata files from repository
+myagents.md
+/myagents.md
+apk_metadata.json
+
+# Ensure python bytecode and caches are excluded
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Explicit exclusions for binaries and generated assets
+*.apk
+*.idsig
+*.keystore
+*.png
+*.jpg
+*.jpeg
+*.log
+*.tmp
+base_rebuilt.apk
+apk_metadata.json
+temp_*
+
+# Explicit directory exclusions
+/apk_decoded/
+/extracted_code/
+/source_code/
+/tools/
+/SDK/
+/build/
+/.vs/
+/.vscode/
+/.idea/
+
